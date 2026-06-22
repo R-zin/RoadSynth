@@ -52,7 +52,27 @@ class NetconvertParams(BaseModel):
 
     geometry_remove_isolated_nodes:bool = Field(default=True)
     geometry_no_internal_links:bool = Field(default=False)
-    
+    junctions_internal_link_detail:int = Field(5,ge=1,le=20)
+    junctions_corner_detail:int = Field(5,ge=1,le=20)
+    default_junction_type: JunctionType = Field(JunctionType.priority)
+    junctions_min_size:float = Field(1.5,ge=0.0,le=20)
+    junctions_limit_turn_speed:float = Field(5.5,ge=0.0,le=30)
+
+    default_lane_width:float = Field(3.2,ge=1.0,le=10)
+    default_speed_limit:float = Field(13.9,ge=1.0,le=80)
+    default_num_lanes:int = Field(1,ge=1,le=8)
+    no_turnarounds:bool = Field(default=False)
+    no_left_connections:bool = Field(default=False) #Disallow left turn connections
+
+    tl_guess:bool = Field(default=True)
+    tl_type:TLType = Field(TLType.static)
+    tl_join:bool = Field(default=False)
+    tl_min_duration:int = Field(5,ge=1,le=120)
+    tl_max_duration:int = Field(50,ge=5,le=300)
+
+
+
+
 
 
 
