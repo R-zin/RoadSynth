@@ -70,6 +70,14 @@ class NetconvertParams(BaseModel):
     tl_min_duration:int = Field(5,ge=1,le=120)
     tl_max_duration:int = Field(50,ge=5,le=300)
 
+    keep_edges_by_vclass:Optional[VehicleClass] = Field(default=None)
+    remove_edges_by_type:Optional[str] = Field(default=None)
+    keep_fringes:EdgeRemoval= Field(default=EdgeRemoval.all)
+
+    proj_utm:bool = Field(default=True)
+    proj_plain_geo:bool = Field(default=False)
+
+    
 
 
 
