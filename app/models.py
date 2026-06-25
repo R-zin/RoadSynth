@@ -1,7 +1,24 @@
-from typing import Optional,List
-from pydantic import BaseModel,Field
-from enum import Enum
+from typing import Optional, List, Any
+from typing_extensions import Self
 
+from pydantic import BaseModel, Field, field_validator
+from enum import Enum
+import re
+
+_VALID_HIGHWAY_TYPES = {
+    "motorway", "motorway_link", "trunk", "trunk_link",
+    "primary", "primary_link", "secondary", "secondary_link",
+    "tertiary", "tertiary_link", "residential", "living_street",
+    "unclassified", "service", "road", "track",
+    "footway", "cycleway", "path", "steps", "pedestrian",
+    "bus_guideway", "raceway", "construction",
+}
+
+_BOUNDARY_RE = re.compile(
+    r"^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$"
+)
+
+_COLLISION_ACTIONS = {"warn", "teleport", "remove", "none"}
 class OutputFormat(str, Enum):
     ns_movements = "ns_movements"
     tcl = "tcl"
@@ -77,7 +94,28 @@ class NetconvertParams(BaseModel):
     proj_utm:bool = Field(default=True)
     proj_plain_geo:bool = Field(default=False)
 
+    @field_validator("osm_highway_types")
+    @classmethod
+    def validate_highway_types(cls,v: List[str]):
+        if not v:
+            raise ValueError("highway types cannot be empty")
+        invalid = [t for t in v if t not in _VALID_HIGHWAY_TYPES]
+        if invalid:
+            raise ValueError(f"Unknow highway types {invalid}")
+        return v
+
+    @field_validator("remove_edges_by_type")
+    @classmethod
+    def validate_remove_types(cls, value: Optional[str])->Optional[str] :
+        if value is None:
+            raise ValueError("remove_edges_by_type cannot be None")
+        tokens = [t.strip() for t in value.split(",") if t.strip()]
+        if not tokens:
+            raise ValueError("remove_edges_by_type cannot be empty")
+        return ",".join(tokens)
     
+
+
 
 
 

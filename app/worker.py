@@ -2,6 +2,8 @@ import asyncio
 import shutil
 import os
 from typing import List
+import aiofiles
+from pathlib import Path
 from typing import Optional
 
 _SUMO_TOOL_DIRS = [
@@ -39,6 +41,17 @@ async def run_async(cmd:List[str],workdir:Path,timeout:float=600.0):
         await process.communicate()
         raise RuntimeError("Timed out")
     return process.returncode,raw_out.decode("replace"),raw_err.decode("replace")
+
+async def write_text(path:Path,content:str):
+    async with aiofiles.open(path,"w") as f:
+        await f.write(content)
+
+async def cpoy_file(src:Path,dst:Path):
+    async with aiofiles.open(src,"rb") as f:
+        data = await f.read()
+    async with aiofiles.open(dst,"wb") as f:
+        await f.write(data)
+
 
 
 
