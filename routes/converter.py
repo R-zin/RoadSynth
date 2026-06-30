@@ -35,12 +35,12 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from .models import (
+from app.models import (
     ConversionRequest,
     JobStatus,
     StageStatus,
 )
-from .pipeline import (
+from app.worker import (
     OUT_DIR,
     JOBS_DIR,
     UPLOAD_DIR,
@@ -333,7 +333,7 @@ async def get_job_logs(job_id: str):
 @app.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["jobs"])
 async def delete_job(job_id: str):
     """Delete a job and all its associated files."""
-    from .pipeline import _jobs, _job_locks
+    from app.worker import _jobs, _job_locks
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found.")
