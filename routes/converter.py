@@ -1,6 +1,104 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+"""
+OSM → NS-3 Mobility Trace Conversion API
 
-app = APIRouter()
+Endpoints:
+  POST /jobs            — Upload OSM + JSON config → start conversion job
+  GET  /jobs            — List all jobs
+  GET  /jobs/{id}       — Poll job status + stage progress
+  GET  /jobs/{id}/download/{filename} — Download output file
+  GET  /jobs/{id}/logs  — Retrieve stage logs
+  DELETE /jobs/{id}     — Remove job and its files
+  GET  /schema          — Full JSON Schema for all parameters
+  GET  /defaults        — Default configuration values
+  GET  /health          — Health check + SUMO tool availability
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import shutil
+from pathlib import Path
+from typing import List, Optional
+
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+
+from .models import (
+    ConversionRequest,
+    JobStatus,
+    StageStatus,
+)
+from .pipeline import (
+    OUT_DIR,
+    JOBS_DIR,
+    UPLOAD_DIR,
+    create_job,
+    get_defaults,
+    get_full_schema,
+    get_job,
+    list_jobs,
+    run_pipeline,
+)
+
+# ── App setup ────────────────────────────────────────────────
+
+app = FastAPI(
+    title="OSM → NS-3 Mobility Trace Converter",
+    description=(
+        "Convert OpenStreetMap files to NS-3 mobility traces "
+        "(ns_movements / TCL) via the full SUMO pipeline. "
+        "Every parameter is exposed."
+    ),
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Dependency: parse config from multipart form ──────────────
+
+async def parse_config(config: str = Form(default="{}")) -> ConversionRequest:
+    """
+    Parse the JSON configuration from the multipart form field.
+    Unspecified fields use their defaults (all parameters have sensible defaults).
+    """
+    try:
+        data = json.loads(config)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"config JSON parse error: {exc}",
+        )
+    try:
+        return ConversionRequest(**data)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"config validation error: {exc}",
+        )
+
+
+# ── Routes ────────────────────────────────────────────────────
 
 @app.get("/health", tags=["system"])
 async def health():
@@ -48,9 +146,9 @@ async def get_default_config():
 
 @app.post("/jobs", status_code=status.HTTP_202_ACCEPTED, tags=["jobs"])
 async def create_conversion_job(
-        background_tasks: BackgroundTasks,
-        osm_file: UploadFile = File(..., description="OpenStreetMap .osm or .osm.pbf file"),
-        config: ConversionRequest = Depends(parse_config),
+    background_tasks: BackgroundTasks,
+    osm_file: UploadFile = File(..., description="OpenStreetMap .osm or .osm.pbf file"),
+    config: ConversionRequest = Depends(parse_config),
 ):
     """
     Start an OSM → NS-3 conversion job.
@@ -93,7 +191,7 @@ async def create_conversion_job(
         )
 
     # Save upload
-    job_id = create_job()
+    job_id  = create_job()
     upload_path = UPLOAD_DIR / f"{job_id}{suffix}"
     content = await osm_file.read()
     upload_path.write_bytes(content)
