@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .label-mono {
+    @apply font-mono text-[11px] uppercase tracking-[0.2em] text-muted;
+  }
+}
