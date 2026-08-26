@@ -1,0 +1,18 @@
+services:
+  osm2ns3:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - osm2ns3-data:/data
+    environment:
+      # Override any OSM2NS3_* setting here (auth is off unless a key is set).
+      # OSM2NS3_API_KEY: "change-me"
+      # OSM2NS3_CORS_ORIGINS: '["http://localhost:8000"]'
+      OSM2NS3_DATA_DIR: /data
+      OSM2NS3_STATIC_DIR: /app/static
+      SUMO_HOME: /usr/share/sumo
+    restart: unless-stopped
+
+volumes:
+  osm2ns3-data:

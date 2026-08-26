@@ -6,6 +6,7 @@ const STATUS_MAP: Record<
   running: { label: 'RUNNING', color: 'text-status-running', pulse: true },
   done: { label: 'DONE', color: 'text-status-done' },
   failed: { label: 'FAILED', color: 'text-status-failed' },
+  cancelled: { label: 'CANCELLED', color: 'text-status-skipped' },
   skipped: { label: 'SKIPPED', color: 'text-status-skipped' },
 };
 

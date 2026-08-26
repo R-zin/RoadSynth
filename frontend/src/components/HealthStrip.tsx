@@ -1,4 +1,4 @@
-import type { HealthResponse } from '../api/types';
+import type { ReadyResponse } from '../api/types';
 import { StatusTag } from './ui/StatusTag';
 
 const TOOL_ORDER = [
@@ -9,7 +9,7 @@ const TOOL_ORDER = [
   'randomTrips.py',
 ];
 
-export function HealthStrip({ health }: { health: HealthResponse | null }) {
+export function HealthStrip({ health }: { health: ReadyResponse | null }) {
   if (!health) return null;
   return (
     <div className="border border-line">

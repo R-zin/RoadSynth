@@ -3,6 +3,7 @@ export type StageStatus =
   | 'running'
   | 'done'
   | 'failed'
+  | 'cancelled'
   | 'skipped';
 
 export type StageKey =
@@ -51,7 +52,7 @@ export interface JobLogsResponse {
   stage_logs: Record<string, string | null>;
 }
 
-export interface HealthResponse {
+export interface ReadyResponse {
   status: 'ready' | 'degraded';
   tools: Record<string, boolean>;
   pipeline_ready: boolean;

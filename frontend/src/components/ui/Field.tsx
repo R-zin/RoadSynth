@@ -1,4 +1,4 @@
-import type { FieldDef } from '../../api/configSchema';
+import type { FieldDef } from '../../api/schema';
 
 interface Props {
   field: FieldDef;
@@ -8,6 +8,15 @@ interface Props {
 
 const inputCls =
   'w-full bg-white border border-line px-3 py-2 text-sm font-mono focus:border-ink outline-none rounded-none';
+
+function Description({ id, text }: { id: string; text?: string }) {
+  if (!text) return null;
+  return (
+    <p id={`${id}-desc`} className="mt-1 font-mono text-[10px] leading-relaxed text-muted">
+      {text}
+    </p>
+  );
+}
 
 export function Field({ field, value, onChange }: Props) {
   const id = `f-${field.key}`;
@@ -28,6 +37,7 @@ export function Field({ field, value, onChange }: Props) {
             {field.label}
           </span>
         </label>
+        <Description id={id} text={field.description} />
       </div>
     );
   }
@@ -53,6 +63,7 @@ export function Field({ field, value, onChange }: Props) {
             </option>
           ))}
         </select>
+        <Description id={id} text={field.description} />
       </div>
     );
   }
@@ -87,6 +98,7 @@ export function Field({ field, value, onChange }: Props) {
             );
           })}
         </div>
+        <Description id={id} text={field.description} />
       </div>
     );
   }
@@ -110,6 +122,7 @@ export function Field({ field, value, onChange }: Props) {
           }
           className={inputCls}
         />
+        <Description id={id} text={field.description} />
       </div>
     );
   }
@@ -128,6 +141,7 @@ export function Field({ field, value, onChange }: Props) {
         onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
         className={inputCls}
       />
+      <Description id={id} text={field.description} />
     </div>
   );
 }

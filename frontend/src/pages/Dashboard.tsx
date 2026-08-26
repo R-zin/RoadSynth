@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button';
 export default function Dashboard() {
   const navigate = useNavigate();
   const jobs = usePolling(() => api.listJobs(), 4000);
-  const health = usePolling(() => api.getHealth(), 10000);
+  const health = usePolling(() => api.getReady(), 10000);
 
   return (
     <div className="grid grid-cols-12 gap-8">

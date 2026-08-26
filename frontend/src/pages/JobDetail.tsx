@@ -23,6 +23,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('progress');
   const [deleting, setDeleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [delError, setDelError] = useState<string | null>(null);
 
   const jobQ = usePolling(() => api.getJob(jobId), 2000, !!jobId);
@@ -44,6 +45,22 @@ export default function JobDetail() {
 
   const job = jobQ.data;
   const running = job?.status === 'running';
+  const cancellable = job?.status === 'running' || job?.status === 'pending';
+
+  const onCancel = async () => {
+    if (!window.confirm('Cancel this job? The pipeline subprocess will be killed.'))
+      return;
+    setCancelling(true);
+    setDelError(null);
+    try {
+      await api.cancelJob(jobId);
+      // The poller picks up the cancelled state on its next tick.
+    } catch (e) {
+      setDelError(e instanceof Error ? e.message : 'Cancel failed');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const onDelete = async () => {
     if (!window.confirm('Delete this job and all its files?')) return;
@@ -88,13 +105,24 @@ export default function JobDetail() {
             {formatDate(job.created_at)} → {formatDate(job.completed_at)}
           </span>
         </div>
-        <button
-          onClick={onDelete}
-          disabled={running || deleting}
-          className="font-mono text-[11px] uppercase tracking-[0.15em] text-status-failed border border-line px-3 py-2 hover:border-status-failed disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {running ? 'Running…' : 'Delete'}
-        </button>
+        <div className="flex items-center gap-3">
+          {cancellable && (
+            <button
+              onClick={onCancel}
+              disabled={cancelling}
+              className="font-mono text-[11px] uppercase tracking-[0.15em] text-ink border border-accent px-3 py-2 hover:bg-accent hover:text-bg disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel'}
+            </button>
+          )}
+          <button
+            onClick={onDelete}
+            disabled={running || deleting}
+            className="font-mono text-[11px] uppercase tracking-[0.15em] text-status-failed border border-line px-3 py-2 hover:border-status-failed disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {running ? 'Running…' : 'Delete'}
+          </button>
+        </div>
       </div>
 
       <div className="col-span-12">
@@ -159,7 +187,7 @@ export default function JobDetail() {
                 </div>
               ) : (
                 filesQ.data!.files.map((f) => (
-                  <FileRow key={f.filename} file={f} />
+                  <FileRow key={f.filename} file={f} jobId={jobId} />
                 ))
               )}
             </div>

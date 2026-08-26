@@ -9,7 +9,7 @@ function StageDot({ status }: { status: StageStatus }) {
         ? 'bg-status-running animate-pulse'
         : status === 'failed'
           ? 'bg-status-failed'
-          : status === 'skipped'
+          : status === 'cancelled' || status === 'skipped'
             ? 'bg-status-skipped'
             : 'bg-status-pending';
   return <span className={`w-2 h-2 rounded-full ${color}`} />;
