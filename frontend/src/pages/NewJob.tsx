@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { buildSections, type SectionDef } from '../api/schema';
 import type { ConversionRequest } from '../api/types';
 import { ConfigForm } from '../components/ConfigForm';
 import { Button } from '../components/ui/Button';
@@ -16,13 +17,18 @@ export default function NewJob() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [config, setConfig] = useState<ConversionRequest>(emptyConfig());
+  const [sections, setSections] = useState<SectionDef[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .getDefaults()
-      .then(setConfig)
+    // Schema (form shape) + defaults (values) travel together; the schema is
+    // the single source of truth so the form can't drift from the backend.
+    Promise.all([api.getSchema(), api.getDefaults()])
+      .then(([schema, defaults]) => {
+        setSections(buildSections(schema));
+        setConfig(defaults);
+      })
       .catch(() => setConfig(emptyConfig()));
   }, []);
 
@@ -107,10 +113,16 @@ export default function NewJob() {
               Pipeline Configuration
             </h2>
             <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted">
-              PRE-FILLED FROM GET /defaults
+              GENERATED FROM GET /schema + /defaults
             </span>
           </div>
-          <ConfigForm value={config} onChange={onField} />
+          {sections ? (
+            <ConfigForm sections={sections} value={config} onChange={onField} />
+          ) : (
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted py-6">
+              LOADING SCHEMA…
+            </div>
+          )}
         </section>
 
         {error && (

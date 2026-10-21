@@ -1,10 +1,42 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { getApiKey, setApiKey } from '../api/client';
 
 const LINKS = [
   { to: '/', label: 'DASHBOARD', end: true },
   { to: '/new', label: 'NEW JOB', end: false },
   { to: '/system', label: 'SYSTEM', end: false },
 ];
+
+function ApiKeyInput() {
+  const [key, setKey] = useState(getApiKey());
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="password"
+        value={key}
+        onChange={(e) => {
+          setKey(e.target.value);
+          setApiKey(e.target.value);
+        }}
+        placeholder="API KEY (IF ENABLED)"
+        className="font-mono text-[11px] uppercase tracking-[0.1em] bg-white border border-line px-2 py-1.5 w-44 focus:border-ink outline-none rounded-none placeholder:text-muted"
+      />
+      {key && (
+        <button
+          type="button"
+          onClick={() => {
+            setKey('');
+            setApiKey('');
+          }}
+          className="font-mono text-[10px] uppercase tracking-[0.15em] text-muted hover:text-status-failed"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function Nav() {
   return (
@@ -16,6 +48,7 @@ export function Nav() {
         </div>
         <div className="col-span-6" />
         <nav className="col-span-3 flex items-center justify-end gap-6">
+          <ApiKeyInput />
           {LINKS.map((l) => (
             <NavLink
               key={l.to}

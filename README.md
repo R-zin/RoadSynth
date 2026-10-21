@@ -25,14 +25,7 @@ OSM file  →  netconvert  →  randomTrips  →  duarouter  →  SUMO  →  tra
 
 **Python:** 3.10+
 
-**Python packages:**
-```
-fastapi
-uvicorn[standard]
-python-multipart
-aiofiles
-pydantic>=2.0
-```
+**Python packages:** pinned in `requirements.txt` (`fastapi`, `uvicorn[standard]`, `python-multipart`, `aiofiles`, `pydantic`, `pydantic-settings`).
 
 **SUMO tools** (must be on `PATH` or set `SUMO_HOME`):
 | Tool | Purpose |
@@ -58,16 +51,8 @@ sudo apt update && sudo apt install sumo sumo-tools
 ```bash
 git clone https://github.com/your-username/osm2ns3.git
 cd osm2ns3
-pip install -r requirements.txt
-```
-
-**`requirements.txt`**
-```
-fastapi>=0.110.0
-uvicorn[standard]>=0.29.0
-python-multipart>=0.0.9
-aiofiles>=23.0.0
-pydantic>=2.0.0
+pip install -r requirements.txt          # runtime
+pip install -e ".[dev]"                  # + tests, lint, coverage
 ```
 
 ---
@@ -75,7 +60,7 @@ pydantic>=2.0.0
 ## Running
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Open **http://localhost:8000/docs** for the interactive Swagger UI.
@@ -83,8 +68,26 @@ Open **http://localhost:8000/docs** for the interactive Swagger UI.
 If SUMO is installed at a non-standard path:
 ```bash
 export SUMO_HOME=/opt/sumo
-uvicorn app.main:app --reload
+uvicorn main:app --reload
 ```
+
+### Configuration
+
+All runtime configuration is via `OSM2NS3_*` environment variables (or a `.env` file):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OSM2NS3_API_KEY` | *(unset)* | When set, every `/jobs/*` route requires an `X-API-Key` header. Auth is **off by default**. |
+| `OSM2NS3_CORS_ORIGINS` | `["http://localhost:5173","http://localhost:8000"]` | JSON list of allowed CORS origins (`allow_credentials=True`). |
+| `OSM2NS3_DATA_DIR` | repo root | Where `jobs/`, `uploads/`, `outputs/`, and `jobs.db` live. |
+| `OSM2NS3_STATIC_DIR` | `static/` | Built frontend served as an SPA with deep-link fallback. |
+| `OSM2NS3_MAX_UPLOAD_MB` | `100` | Upload size cap (413 above it). |
+| `OSM2NS3_MAX_CONCURRENT_JOBS` | `2` | Pipeline concurrency (semaphore). |
+| `OSM2NS3_JOB_RETENTION_MAX` | `200` | Keep at most N finished job dirs. |
+| `OSM2NS3_JOB_RETENTION_DAYS` | `7` | Prune finished jobs older than N days. |
+| `OSM2NS3_TIMEOUT_SUMO_S` | `1200` | Hard timeout for the `sumo` stage. |
+| `OSM2NS3_LOG_LEVEL` | `INFO` | Root log level. |
+| `SUMO_HOME` | *(unset)* | Extra directory searched first for `randomTrips.py`/`traceExporter.py`. |
 
 ---
 
@@ -182,17 +185,22 @@ curl -O http://localhost:8000/jobs/3f2a1c7e-.../download/mobility.tcl
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | SUMO tool availability check |
+| `GET` | `/live` | Liveness probe — always ok while the process serves |
+| `GET` | `/ready` | Readiness: 200 when all SUMO tools found, 503 otherwise |
+| `GET` | `/health` | `/ready` shape that never returns 5xx (backcompat) |
 | `GET` | `/schema` | Full JSON Schema for all 74 parameters |
 | `GET` | `/defaults` | Default values for every parameter |
 | `POST` | `/jobs` | Submit OSM file + config, returns `job_id` |
 | `GET` | `/jobs` | List all jobs, newest first |
 | `GET` | `/jobs/{id}` | Job status + per-stage progress |
+| `POST` | `/jobs/{id}/cancel` | Cancel a pending/running job (kills its subprocess tree) |
 | `GET` | `/jobs/{id}/config` | Exact config used for a job |
 | `GET` | `/jobs/{id}/files` | List downloadable output files |
 | `GET` | `/jobs/{id}/download/{file}` | Download an output file |
 | `GET` | `/jobs/{id}/logs` | Per-stage stdout/stderr logs |
 | `DELETE` | `/jobs/{id}` | Delete job and all its files |
+
+`/live`, `/ready`, `/health`, `/schema`, `/defaults`, and the SPA are public. Every `/jobs/*` route sits behind the API-key check when `OSM2NS3_API_KEY` is set.
 
 ---
 
@@ -368,15 +376,36 @@ mobility.Install(nodes);
 
 ```
 osm2ns3/
+├── main.py             # FastAPI app factory + route handlers
 ├── app/
-│   ├── main.py       # FastAPI app, all route handlers
-│   ├── models.py     # Pydantic models: 74 parameters, 14 validators
-│   └── pipeline.py   # Async pipeline: subprocess + aiofiles throughout
-├── jobs/             # Per-job workdirs with intermediate files and .log files
-├── uploads/          # Uploaded OSM files (named by job UUID)
-├── outputs/          # Final output files served for download
-└── requirements.txt
+│   ├── settings.py     # pydantic-settings (OSM2NS3_* env, derived dirs)
+│   ├── models.py       # Pydantic models: 74 parameters, cross-stage validators
+│   ├── store.py        # SQLite job store (WAL, retention pruning, restart recovery)
+│   └── worker.py       # PipelineRunner: async subprocess pipeline + cancellation
+├── frontend/           # React/TS SPA (schema-driven form from GET /schema)
+├── static/             # Built SPA served by FastAPI (present in the Docker image)
+├── jobs/               # Per-job workdirs with intermediate files and .log files
+├── uploads/            # Uploaded OSM files (named by job UUID)
+├── outputs/            # Final output files served for download
+├── tests/              # 118 tests: models, command builders, store, API, cancel
+├── pyproject.toml      # project metadata + pytest/black/isort/ruff/coverage config
+├── requirements.txt
+├── Dockerfile          # multi-stage: node build → ubuntu+SUMO+sumo-tools runtime
+└── docker-compose.yml
 ```
+
+---
+
+## Docker
+
+A single all-in-one image builds the frontend and runs the backend on an Ubuntu + SUMO base, persisting state to a `/data` volume:
+
+```bash
+docker build -t osm2ns3 .
+docker run -p 8000:8000 -v osm2ns3-data:/data osm2ns3
+```
+
+or `docker compose up --build`. The SPA is served at `/` with deep links (`/jobs/{id}`) working; set `OSM2NS3_API_KEY` to enable auth inside the container.
 
 ---
 

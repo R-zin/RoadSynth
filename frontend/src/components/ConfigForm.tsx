@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { SECTIONS } from '../api/configSchema';
+import type { SectionDef } from '../api/schema';
 import type { ConversionRequest } from '../api/types';
 import { Field } from './ui/Field';
 
 interface Props {
+  sections: SectionDef[];
   value: ConversionRequest;
   onChange: (section: keyof ConversionRequest, key: string, val: unknown) => void;
 }
 
-export function ConfigForm({ value, onChange }: Props) {
+export function ConfigForm({ sections, value, onChange }: Props) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
     <div className="flex flex-col">
-      {SECTIONS.map((section, idx) => {
+      {sections.map((section, idx) => {
         const secVal = value[section.key as keyof ConversionRequest] ?? {};
         const keyFields = section.fields.filter((f) => f.group === 'key');
         const advFields = section.fields.filter((f) => f.group === 'advanced');

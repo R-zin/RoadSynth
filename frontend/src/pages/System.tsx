@@ -24,7 +24,7 @@ const ENDPOINTS: { method: string; path: string }[] = [
 ];
 
 export default function System() {
-  const health = usePolling(() => api.getHealth(), 10000);
+  const health = usePolling(() => api.getReady(), 10000);
   const h = health.data;
 
   return (
